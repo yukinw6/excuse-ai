@@ -1,0 +1,6 @@
+Flask
+google-cloud-storage
+google-cloud-firestore
+google-cloud-aiplatform
+gunicorn
+

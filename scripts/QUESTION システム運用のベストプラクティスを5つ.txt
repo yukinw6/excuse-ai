@@ -1,0 +1,12 @@
+QUESTION="システム運用のベストプラクティスを5つ、番号付きの箇条書きで出力してください。余計な説明、謝罪文、補足は禁止。"
+
+curl -s http://localhost:8000/v1/completions \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"model\": \"openai_gpt-oss-20b-MXFP4.gguf\",
+    \"prompt\": \"$QUESTION\",
+    \"temperature\": 0.1,
+    \"max_tokens\": 200,
+    \"stop\": [\"Note:\", \"解説\", \"Sure\", \"So \", \"申し訳ありません\", \"以下の\"]
+  }" | jq -r '.choices[0].text'
+

@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.log
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Build / Dist
+build/
+dist/
+*.tar.gz
+
+# Jupyter
+.ipynb_checkpoints/
+
+# GCP / Credentials（絶対コミットしない）
+# サービスアカウント鍵やADC
+*.json
+*.p12
+# 例外: package.json などは明示許可
+!package.json
+
+# Node (もしフロントで使うなら)
+node_modules/
+
+# Docker
+*.envrc
