@@ -27,10 +27,10 @@ steps:
       - '--min-instances=0' 
       - '--memory=512Mi'
       - '--timeout=300'
-      # ⬇️ 削除: Cloud Build SAが持つ権限を借用する必要がなくなるため
-      # - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com' 
-
-  # 4. デプロイ結果の表示
+      # ⬇️ 追加: Cloud Build SAを強制的に実行主体として使用
+      - '--impersonate-service-account=@cloudbuild.gserviceaccount.com' 
+  
+  # 4. デプロイ結果表示
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
