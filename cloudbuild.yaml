@@ -14,6 +14,7 @@ steps:
       - 'asia-northeast1-docker.pkg.dev/scenic-parity-465008-n7/containers/excuse-ai-service:$BUILD_ID'
 
   # 3. Cloud Runにデプロイ（イメージ指定）
+  # 実行主体はCloud Build SAになり、excuse-ai-saはコンテナ実行時のサービスアカウントになる
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
@@ -23,10 +24,11 @@ steps:
       - '--region=asia-northeast1'
       - '--allow-unauthenticated'
       - '--set-env-vars=PROJECT_ID=scenic-parity-465008-n7,LOCATION=asia-northeast1,VERTEX_AI_LOCATION=us-central1'
-      - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com'
       - '--min-instances=0' 
       - '--memory=512Mi'
       - '--timeout=300'
+      # ⬇️ 削除: Cloud Build SAが持つ権限を借用する必要がなくなるため
+      # - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com' 
 
   # 4. デプロイ結果表示
   - name: 'gcr.io/cloud-builders/gcloud'
