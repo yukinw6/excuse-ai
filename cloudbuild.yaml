@@ -28,6 +28,8 @@ steps:
       - '--timeout=300'
       # ⬇️ コンテナ実行アカウントを指定 (必須)
       - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com' 
+      # 認証情報の衝突を避けるための最終手段
+      - '--no-user-output-enabled'
 
   # 4. デプロイ結果の表示
   - name: 'gcr.io/cloud-builders/gcloud'
