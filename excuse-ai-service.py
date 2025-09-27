@@ -16,7 +16,8 @@ storage_client = storage.Client()
 db = firestore.Client()
 
 # Vertex AI初期化
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+VERTEX_AI_LOCATION = os.getenv('VERTEX_AI_LOCATION', 'us-central1') 
+vertexai.init(project=PROJECT_ID, location=VERTEX_AI_LOCATION)
 
 # Frontend HTML content embedded in the Python file
 # NOTE: Replace 'YOUR-CLOUD-RUN-SERVICE-URL' and 'YOUR-CLOUD-STORAGE-BUCKET' with your actual values.
@@ -157,7 +158,7 @@ FRONTEND_HTML = """
                         attributes: {
                             incidentId: incidentId // 新しく追加
                         },
-                        data: btoa(JSON.stringify({
+                        data: btoa(unescape(encodeURIComponent(JSON.stringify({
                             incident_id: incidentId,
                             system_name: document.getElementById('system_name').value,
                             failure_type: document.getElementById('failure_type').value,
@@ -165,7 +166,7 @@ FRONTEND_HTML = """
                             detected_at: detectedAt,
                             day_of_week: dayOfWeek(occurredAt),
                             impact: document.getElementById('impact').value,
-                        }))
+                        }))))
                     }
                 };
                 
@@ -284,7 +285,7 @@ def generate_excuses(incident_data):
         # Vertex AI Generative AI Studio経由でGemini呼び出し
         print("Attempting to call Gemini...")
         from vertexai.preview.generative_models import GenerativeModel
-        model = GenerativeModel("gemini-1.5-flash-002")
+        model = GenerativeModel("gemini-2.0-flash-lite-001")
         print("Model created successfully")
         
         response = model.generate_content(prompt)
@@ -321,13 +322,11 @@ def generate_excuses(incident_data):
         "generated_at": datetime.now().isoformat()
     }
 
-@app.route('/pubsub', methods=['POST'])
-def pubsub_push():
-    print('[HIT] POST /pubsub → delegate to /')
-    return root()
-
 @app.route('/', methods=['GET', 'POST'])
 def root():
+    print(f"[DEBUG] Method: {request.method}")
+    print(f"[DEBUG] Headers: {dict(request.headers)}")
+    print(f"[DEBUG] Content-Type: {request.content_type}")
     # ---------------------------
     # GET: ブラウザアクセス用（フロントのHTMLを返すだけ）
     # ---------------------------
@@ -337,6 +336,20 @@ def root():
     # ---------------------------
     # POST: Pub/Sub push または フロント直POST用
     # ---------------------------
+
+    # POSTが来た時点でデバッグログを出す
+    print("[DEBUG] POST受信")
+    envelope = request.get_json(silent=True) or {}
+    print(f"[DEBUG] envelope keys={list(envelope.keys())}")
+
+    pubsub_message = envelope.get('message', {}) or {}
+    attributes = pubsub_message.get('attributes', {}) or {}
+    print(f"[DEBUG] attributes={attributes}")
+
+    bucket_name = attributes.get('bucketId')
+    object_id   = attributes.get('objectId')
+    print(f"[DEBUG] 初期 bucket_name={bucket_name}, object_id={object_id}")
+
     # JSONとしてリクエストボディを読み込む
     # 失敗したら None → or {} で空dictを代わりに入れる
     envelope = request.get_json(silent=True) or {}
@@ -344,6 +357,11 @@ def root():
     # Pub/Sub標準形式では "message" が入っている
     pubsub_message = envelope.get('message', {}) or {}
     attributes = pubsub_message.get('attributes', {}) or {}
+
+    # ✅ まず最初に attributes から初期化しておく（未定義参照を防止）
+    bucket_name = attributes.get('bucketId')
+    object_id   = attributes.get('objectId')
+    used_gcs_input = False
 
     # ---------------------------
     # 1) dataフィールド（Base64エンコードされたJSON）を優先的に読む
@@ -353,8 +371,16 @@ def root():
     raw = pubsub_message.get('data')
     if raw:
         try:
-            # Base64デコード → UTF-8文字列化 → JSONに変換
-            incident_data = json.loads(b64decode(raw).decode('utf-8'))
+            decoded = json.loads(b64decode(raw).decode('utf-8'))
+            if decoded.get('incident_id'):
+                # フロント直POST
+                incident_data = decoded
+            elif decoded.get('bucket') and decoded.get('name'):
+                # GCS通知
+                bucket_name = bucket_name or decoded.get('bucket')
+                object_id   = object_id   or decoded.get('name')
+            else:
+                print(f"[WARN] dataに未知の形式: {decoded}")
         except Exception as e:
             print(f"[WARN] dataフィールドのデコード失敗: {e}")
 
@@ -362,9 +388,6 @@ def root():
     # 2) dataが無い/壊れている場合のみ GCSオブジェクトを読む
     # （Eventarc/GCS通知経由のケースをカバー）
     # ---------------------------
-    bucket_name = attributes.get('bucketId')
-    object_id   = attributes.get('objectId')
-    used_gcs_input = False
     if incident_data is None:
         if not bucket_name or not object_id:
             # 処理できるデータが無い場合 → ACKして再試行抑止
@@ -393,12 +416,17 @@ def root():
     if incident_id_attr and not incident_data.get('incident_id'):
         incident_data['incident_id'] = incident_id_attr
 
+    # ファイル名からフォールバック
+    if not incident_data.get('incident_id') and object_id:
+        base = os.path.splitext(os.path.basename(object_id))[0]
+        if base:
+            incident_data['incident_id'] = base
+
     if not incident_data.get('incident_id'):
-        # 必須キーが無い場合はスキップ（ACKで握りつぶす）
         return 'incident_id missing, skipped', 200
 
+    # ここで inc_id を確定（以降で使用）
     inc_id = incident_data['incident_id']
-
     # ---------------------------
     # 4) 冪等性チェック
     # Firestoreに既に同じincident_idがあれば処理済み → ACK
