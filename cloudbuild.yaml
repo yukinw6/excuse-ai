@@ -27,8 +27,6 @@ steps:
       - '--min-instances=0' 
       - '--memory=512Mi'
       - '--timeout=300'
-      # ⬇️ 追加: Cloud Build SAを強制的に実行主体として使用
-      - '--impersonate-service-account=@cloudbuild.gserviceaccount.com' 
   
   # 4. デプロイ結果表示
   - name: 'gcr.io/cloud-builders/gcloud'
