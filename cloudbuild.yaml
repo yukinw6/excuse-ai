@@ -13,7 +13,7 @@ steps:
       - 'push'
       - 'asia-northeast1-docker.pkg.dev/scenic-parity-465008-n7/containers/excuse-ai-service:$BUILD_ID'
 
-  # 3. Cloud Runにデプロイ（認証情報の衝突を回避）
+  # 3. Cloud Runにデプロイ
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
@@ -26,12 +26,10 @@ steps:
       - '--min-instances=0' 
       - '--memory=512Mi'
       - '--timeout=300'
-      # ⬇️ 実行コンテナが使用するSAを指定（これは必須）
+      # ⬇️ コンテナ実行アカウントを指定 (必須)
       - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com' 
-      # ⬇️ デプロイの実行主体としてCloud Build SAを強制的に指定 (認証衝突回避)
-      - '--impersonate-service-account=870325242719@cloudbuild.gserviceaccount.com'
-  
-  # 4. デプロイ結果表示
+
+  # 4. デプロイ結果の表示
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
