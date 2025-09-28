@@ -26,10 +26,8 @@ steps:
       - '--min-instances=0' 
       - '--memory=512Mi'
       - '--timeout=300'
-      # ⬇️ コンテナ実行アカウントを指定 (必須)
-      - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com' 
-      # 認証情報の衝突を避けるための最終手段
-      - '--no-user-output-enabled'
+      # コンテナ実行アカウント (アプリケーションが使用するSA) はそのまま残します
+      - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com'
 
   # 4. デプロイ結果の表示
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -40,6 +38,10 @@ steps:
       - 'excuse-ai-service'
       - '--region=asia-northeast1'
       - '--format=value(status.url)'
+
+# ⬇️ 必須: ビルド全体を実行するサービスアカウントをトップレベルで指定
+serviceAccount: projects/scenic-parity-465008-n7/serviceAccounts/excuse-ai-build@scenic-parity-465008-n7.iam.gserviceaccount.com
+
 
 # ビルド設定
 options:
