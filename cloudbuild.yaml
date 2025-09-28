@@ -29,7 +29,7 @@ steps:
       # コンテナ実行アカウント (アプリケーションが使用するSA) はそのまま残します
       - '--service-account=excuse-ai-sa@scenic-parity-465008-n7.iam.gserviceaccount.com'
 
-  # 4. デプロイ結果の表示
+  # 4. デプロイ結果表示
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       - 'run'
